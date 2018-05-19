@@ -1,0 +1,73 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon May  7 09:25:26 2018
+
+@author: 韩晶晶
+
+Apriori算法，关联分析
+学习书籍为：Machine Learning in Action
+"""
+class Apriori:
+    
+    #简单实验数据
+    def loadDataSet(self,dataset = [[1,3,4],[2,3,5],[1,2,3,5],[2,5],[2,4,5],[1,2,3,4,5]]):
+        return list(map(set,dataset))
+
+    #unique dataset values
+    def createC1(self,dataset):
+        #
+        C1 = []
+        for data in dataset:
+            for subdata in data:
+                if [subdata] not in C1:
+                    C1.append([subdata])
+        C1.sort()
+        return list(map(frozenset,C1))
+    
+    #计算所有项集的频繁度和支持度
+    def scanD(self,dataset,Ck,minsupport=0.5):
+        #计算所有项集的频繁度
+        subC = {}
+        for tid in dataset:
+            for can in Ck:
+                if can.issubset(tid):
+                    if can not in subC.keys():
+                        subC[can] = 1
+                    else:
+                        subC[can] += 1
+        #计算所有项集的支持度
+        numdataset = float(len(dataset)) #number of samples
+        resultList = []
+        supportdata = {}
+        for key in subC:
+            support = subC[key]/numdataset
+            if support >= minsupport:
+                resultList.append(key)
+            supportdata[key] = support            
+        return resultList,supportdata
+    
+    #生成包含k个子集的子集列表
+    def aprioriGen(self,Lk,k):
+        resultList = []
+        numLk = len(Lk) # number of Lk
+        for i in range(numLk):
+            for j in range(i+1,numLk):
+                subLk = set(list(Lk[i])) | set(list(Lk[j]))
+                if subLk not in resultList and len(subLk) == k:
+                    resultList.append(subLk)
+        return list(map(frozenset,resultList))
+    
+    #生成所有符合支持度的子集
+    def apriori_main(self,dataset,minsupport=0.5):
+        C1 = self.createC1(dataset)
+        L1, supportdata = self.scanD(dataset,C1,minsupport)
+        L = [L1]
+        for k in range(2,len(C1)+1):
+            Ck = self.aprioriGen(L[k-2],k)
+            Lk,supK = self.scanD(dataset,Ck,minsupport)
+            supportdata.update(supK)
+            L.append(Lk)
+            if len(Lk) == 1:
+                break
+        return L, supportdata
+
