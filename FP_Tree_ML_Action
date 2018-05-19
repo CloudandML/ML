@@ -1,0 +1,126 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon May 14 14:27:59 2018
+
+@author: 韩晶晶
+学习书籍：Machine Learning in Action
+"""
+
+#FP tree
+class treeNode:
+    def __init__(self,nameValue,numOccur,parentNode):
+        self.name = nameValue
+        self.count = numOccur
+        self.parent = parentNode
+        self.nodeLink = None
+        self.children = {}
+    
+    def inc(self,numOccur):
+        self.count += numOccur
+        
+    def disp(self,ind=1):
+        print(' '*ind,self.name, ' ', self.count)
+        for child in self.children.values():
+            child.disp(ind+3)
+            
+    
+def createTree(dataset, minsupport=1):
+    headerTable = {}
+    for trans in dataset:
+        for item in trans:
+            headerTable[item] = headerTable.get(item,0) + dataset[trans]
+    #remove less than minsupport element
+    keys = [k for k,v in headerTable.items() if v < minsupport]
+    for k in keys:
+        del headerTable[k]
+    freqItemSet = set(headerTable.keys())
+    if len(freqItemSet)==0: return None,None
+
+    for k in headerTable:
+        headerTable[k] = [headerTable[k],None]
+    retTree = treeNode('Null set',1,None)
+    for tranSet,count in dataset.items():
+        localD = {}
+        for item in tranSet:
+            if item in freqItemSet:
+                localD[item] = headerTable[item][0]
+        if len(localD)>0:
+            orderedItems = [v[0] for v in sorted(localD.items(), key=lambda p:p[1], reverse=True)]
+            updateTree(orderedItems, retTree, headerTable, count)
+    return retTree, headerTable
+
+
+def updateTree(items, inTree, headerTable, count):
+    if items[0] in inTree.children:
+        inTree.children[items[0]].inc(count)
+    else:
+        inTree.children[items[0]] = treeNode(items[0], count, inTree)
+        if headerTable[items[0]][1] == None:
+            headerTable[items[0]][1] = inTree.children[items[0]]
+        else:
+            updateHeader(headerTable[items[0]][1], inTree.children[items[0]])
+    
+    if len(items) > 1:
+        updateTree(items[1::], inTree.children[items[0]], headerTable, count)
+        
+def updateHeader(nodeToTest, targetNode):
+    while( nodeToTest.nodeLink != None):
+        nodeToTest = nodeToTest.nodeLink
+    nodeToTest.nodeLink = targetNode
+
+    
+def loadsimpdata():
+    simpdata = [list('rzhjp'),list('zyxwvuts'),list('z'),list('rxnos'),list('rxzqtp'),list('yzxeqstm')]
+    return simpdata
+
+def createInitSet(dataset):
+    retDict = {}
+    for trans in dataset:
+        retDict[frozenset(trans)] = 1
+    return retDict
+
+
+#
+def ascendTree(leafNode,prefixPath):
+    if leafNode.parent != None:
+        prefixPath.append(leafNode.name)
+        ascendTree(leafNode.parent,prefixPath)
+        
+
+def findPrefixPath(basePat, treeNode):
+    condPats = {}
+    while treeNode != None:
+        prefixPath = []
+        ascendTree(treeNode,prefixPath)
+        if len(prefixPath) > 1:
+            condPats[frozenset(prefixPath[1:])] = treeNode.count
+        treeNode = treeNode.nodeLink
+    return condPats
+
+
+def mineTree(inTree, headerTable, minsupport, preFix, freqItemList):
+    bigList = [v[0] for v in sorted(headerTable.items(), key=lambda p:p[1][0])]
+    for basePat in bigList:
+        newFreqSet = preFix.copy()
+        newFreqSet.add(basePat)
+        freqItemList.append(newFreqSet)
+        condPattBases = findPrefixPath(basePat, headerTable[basePat][1])
+        myCondTree, myHead = createTree(condPattBases, minsupport)
+        if myHead != None:
+            mineTree(myCondTree, myHead, minsupport, newFreqSet, freqItemList)
+    #print('conditional tree for : ', newFreqSet)
+    #myCondTree.disp()
+
+def main():
+    
+    #simpdata = loadsimpdata()
+    simpdata = [line.split() for line in open('d:/work/dataset/kosarak.dat').readlines()]
+    initset = createInitSet(simpdata)
+    myfptree, myheaderTab = createTree(initset,minsupport=30000)
+    myfptree.disp()
+    freqItems = []
+    mineTree(myfptree, myheaderTab,30000,set([]),freqItems)
+    return  myfptree, myheaderTab, freqItems
+    
+if __name__ == '__main__':
+   myfptree, myheaderTab, freqItems = main()     
